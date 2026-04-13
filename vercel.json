@@ -1,0 +1,8 @@
+{
+  "builds": [
+    {
+      "src": "nexus-app/package.json",
+      "use": "@vercel/next"
+    }
+  ]
+}
