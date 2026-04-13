@@ -30,8 +30,7 @@ export function getAccount(id: string): AccountRecord | undefined {
 
 export function getAccountByCompany(company: string): AccountRecord | undefined {
   const lower = company.toLowerCase();
-  for (const account of store.values()) {
-    if (account.company.toLowerCase().includes(lower)) return account;
-  }
-  return undefined;
+  return Array.from(store.values()).find(
+    (account) => account.company.toLowerCase().includes(lower)
+  );
 }
