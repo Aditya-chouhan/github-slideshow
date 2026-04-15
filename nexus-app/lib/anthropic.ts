@@ -1,5 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error('[NEXUS] ANTHROPIC_API_KEY is not set — all agent calls will fail. Add it to your Vercel environment variables.');
+}
+
 // Singleton Anthropic client
 export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,

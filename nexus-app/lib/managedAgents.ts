@@ -27,7 +27,15 @@ export interface ManagedSessionOptions {
   };
 }
 
-// ── Sessions API (Managed Agents) ─────────────────────────────────────────────
+// ── Sessions API capability check ───────────────────────────────────────────────
+
+function hasSessionsAPI(): boolean {
+  // SDK v0.30 doesn't have beta.sessions — only attempt if it exists
+  const b = (anthropic as unknown as Record<string, unknown>).beta as Record<string, unknown> | undefined;
+  return !!(b?.sessions);
+}
+
+// ── Sessions API (Managed Agents) ─────────────────────────────────────────────────
 
 async function runViaSession(opts: ManagedSessionOptions): Promise<string> {
   const client = anthropic as unknown as {
@@ -125,7 +133,7 @@ async function runViaDirect(opts: ManagedSessionOptions): Promise<string> {
   return text && text.type === 'text' ? text.text : '';
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Run a managed agent session. Uses Managed Agents Sessions API when
@@ -133,16 +141,11 @@ async function runViaDirect(opts: ManagedSessionOptions): Promise<string> {
  * to direct anthropic.messages.create() with the local system prompt.
  */
 export async function runManagedSession(opts: ManagedSessionOptions): Promise<string> {
-  if (MANAGED_ENABLED && opts.agentId) {
+  if (MANAGED_ENABLED && opts.agentId && hasSessionsAPI()) {
     try {
       return await runViaSession(opts);
-    } catch (err) {
-      // If Sessions API fails (e.g. SDK version doesn't support it), fall back
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes('beta.sessions')) {
-        throw err; // Re-throw non-SDK errors
-      }
-      // Fall through to direct mode
+    } catch {
+      // Sessions API failed — fall through to direct mode
     }
   }
   return runViaDirect(opts);
