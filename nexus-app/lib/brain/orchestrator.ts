@@ -16,8 +16,8 @@ import type {
   BrainRoutingPlan,
   BrainAgentResult,
   AgentEvent,
-  AgentKey,
 } from '../types';
+import type { AgentKey } from '../agentIds';
 
 // ── System prompt for the Brain (used in fallback mode) ───────────────────────
 
