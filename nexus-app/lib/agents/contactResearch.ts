@@ -1,4 +1,6 @@
-import { MODELS, tavilySearch, WEB_SEARCH_TOOL, runAgentLoop } from '../anthropic';
+import { MODELS, WEB_SEARCH_TOOL } from '../anthropic';
+import { runManagedAgent } from '../managedAgents';
+import { AGENT_IDS } from '../agentIds';
 import type { ContactResult, Contact, WhyNowResult } from '../types';
 
 const SYSTEM = `You are the Contact Intelligence Agent for NEXUS AI.
@@ -21,18 +23,13 @@ Target roles in priority order:
 Output clean JSON:
 {
   "contacts": [
-    {
-      "name": "Sarah Chen",
-      "title": "Chief Revenue Officer",
-      "linkedinUrl": "https://linkedin.com/in/sarahchen",
-      "emailHint": "first.last@company.com",
-      "background": "Joined in 2023 from Stripe. Led 3x ARR growth at previous role. Focused on enterprise expansion."
-    }
+    { "name": "Sarah Chen", "title": "CRO", "linkedinUrl": "...", "emailHint": "first.last@company.com", "background": "..." }
   ],
   "summary": "1 sentence on who to prioritize and why"
 }
 
-If you cannot verify a person exists, do not include them. Quality over quantity.`;
+If you cannot verify a person exists, do not include them. Quality over quantity.
+Output ONLY valid JSON. No markdown fences.`;
 
 function parseResult(raw: string, company: string): ContactResult {
   try {
@@ -60,16 +57,12 @@ export async function runContactResearch(
     ? `Recent signals: ${whyNow.signals.map(s => s.detail).join('; ')}`
     : '';
 
-  const raw = await runAgentLoop(
-    MODELS.SONNET,
-    SYSTEM,
+  const raw = await runManagedAgent(
+    AGENT_IDS.CONTACT_INTEL,
     `Find the 3 best decision-makers to contact at "${company}". ${context}\n\nSearch LinkedIn, company website, Crunchbase, and news sources. Focus on people who would own the buying decision for a B2B SaaS tool.`,
-    [WEB_SEARCH_TOOL],
-    async (_name, input) => {
-      onProgress(`Searching: ${input.query}`);
-      return tavilySearch(input.query, 5);
-    },
-    onProgress
+    { model: MODELS.SONNET, system: SYSTEM, tools: [WEB_SEARCH_TOOL] },
+    onProgress,
+    (tool, query) => onProgress(`🔍 ${query}`)
   );
 
   const result = parseResult(raw, company);

@@ -1,4 +1,6 @@
-import { anthropic, MODELS } from '../../anthropic';
+import { MODELS, WEB_SEARCH_TOOL } from '../../anthropic';
+import { runManagedAgent } from '../../managedAgents';
+import { AGENT_IDS } from '../../agentIds';
 import type { PersonalizationResult, AccountRecord } from '../../types';
 
 const SYSTEM = `You are the Personalization Agent for NEXUS AI — the intelligence bridge between Sales and Marketing.
@@ -9,13 +11,11 @@ Output JSON:
 {
   "company": "Company name",
   "linkedinPost": "A LinkedIn post that would resonate specifically with this company's situation",
-  "coldEmail": {
-    "subject": "Specific, under 8 words",
-    "body": "Personalised email referencing their specific signals"
-  },
-  "adCopy": "A LinkedIn ad specifically targeting this company's profile (for ABM/account-based marketing)",
+  "coldEmail": { "subject": "Specific, under 8 words", "body": "Personalised email referencing their specific signals" },
+  "adCopy": "A LinkedIn ad specifically targeting this company's profile (for ABM)",
   "personalizationRationale": "1-paragraph explanation of what signals you used and why"
-}`;
+}
+Output ONLY valid JSON. No markdown fences.`;
 
 export async function runPersonalizationAgent(
   input: string,
@@ -28,19 +28,15 @@ export async function runPersonalizationAgent(
     ? `Company: ${account.company}\nICP Score: ${account.icpScore}/100 — ${account.recommendation}\nSignals: ${account.signals.map(s => `[${s.type}] ${s.detail}`).join('\n')}\nPrimary Contact: ${account.contacts[0] ? `${account.contacts[0].name}, ${account.contacts[0].title}` : 'Unknown'}\nContact Background: ${account.contacts[0]?.background || 'N/A'}`
     : `Company/context: ${input}`;
 
-  const response = await anthropic.messages.create({
-    model: MODELS.OPUS,
-    max_tokens: 3000,
-    system: SYSTEM,
-    messages: [{
-      role: 'user',
-      content: `Create hyper-personalised marketing copy using this sales intelligence:\n\n${context}\n\nAdditional context: ${input}`,
-    }],
-  });
+  const raw = await runManagedAgent(
+    AGENT_IDS.PERSONALIZATION,
+    `Create hyper-personalised marketing copy using this sales intelligence:\n\n${context}\n\nAdditional context: ${input}`,
+    { model: MODELS.SONNET, system: SYSTEM, tools: [WEB_SEARCH_TOOL] },
+    onProgress,
+    (tool, query) => onProgress(`🔍 ${query}`)
+  );
 
   onProgress('Personalisation complete…');
-  const text = response.content.find(b => b.type === 'text');
-  const raw = text && text.type === 'text' ? text.text : '';
 
   try {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

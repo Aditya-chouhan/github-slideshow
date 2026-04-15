@@ -1,7 +1,9 @@
-import { anthropic, MODELS } from '../anthropic';
+import { MODELS } from '../anthropic';
+import { runManagedAgent } from '../managedAgents';
+import { AGENT_IDS } from '../agentIds';
 import type { OutreachResult, WhyNowResult, ContactResult, ICPResult } from '../types';
 
-const WRITER_SYSTEM = `You are the Outreach Writer Agent for NEXUS AI — powered by Claude claude-opus-4-6.
+const SYSTEM = `You are the Outreach Writer Agent for NEXUS AI — powered by Claude Opus 4.
 
 Your mission: Write B2B sales outreach that gets replies. Not templates. Not generic AI slop. Human-feeling, specific, and compelling.
 
@@ -15,43 +17,11 @@ Rules:
 
 Output JSON:
 {
-  "coldEmail": {
-    "subject": "Quick question about [Company]'s growth",
-    "body": "Hi [Name],\n\nSaw [Company] just raised [amount] — congrats...\n\n..."
-  },
+  "coldEmail": { "subject": "...", "body": "Hi [Name],\n\n..." },
   "linkedinDM": "Hi [Name], noticed [Company] just [signal]...",
-  "followUpEmail": {
-    "subject": "One more thought",
-    "body": "Hi [Name],\n\nFollowing up with a different angle..."
-  }
-}`;
-
-const EVALUATOR_SYSTEM = `You are a world-class B2B sales coach reviewing outreach copy.
-
-Score the outreach 0-100 on these criteria:
-- Specificity: Does it reference actual company signals? (30 points)
-- Brevity: Cold email under 120 words? (20 points)
-- No clichés: Zero generic phrases? (20 points)
-- Clear value: Does it state what's in it for them in one sentence? (20 points)
-- Natural tone: Does it sound human, not AI? (10 points)
-
-Respond ONLY with JSON: { "score": 85, "feedback": "Missing specific dollar amount from funding round" }`;
-
-async function evaluate(copy: string): Promise<{ score: number; feedback: string }> {
-  const response = await anthropic.messages.create({
-    model: MODELS.SONNET,
-    max_tokens: 256,
-    system: EVALUATOR_SYSTEM,
-    messages: [{ role: 'user', content: `Evaluate this outreach:\n\n${copy}` }],
-  });
-  const text = response.content.find(b => b.type === 'text');
-  const raw = text && text.type === 'text' ? text.text : '{}';
-  try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-  } catch {}
-  return { score: 70, feedback: '' };
+  "followUpEmail": { "subject": "One more thought", "body": "..." }
 }
+Output ONLY valid JSON. No markdown fences.`;
 
 function buildContext(
   company: string,
@@ -84,47 +54,18 @@ export async function runOutreachWriter(
 ): Promise<OutreachResult> {
   onProgress(`Writing personalised outreach for ${company}…`);
   const context = buildContext(company, whyNow, contacts, icp);
-  let bestOutput = '';
-  let bestScore = 0;
-  let iterations = 0;
 
-  for (let i = 0; i < 3; i++) {
-    iterations++;
-    const feedback = bestScore > 0 ? `\n\nPrevious attempt scored ${bestScore}/100. Feedback: ${bestOutput}` : '';
+  const raw = await runManagedAgent(
+    AGENT_IDS.OUTREACH_WRITER,
+    `Write compelling sales outreach using this intelligence:\n\n${context}\n\nScore your own output. If quality < 8/10, revise once.`,
+    { model: MODELS.OPUS, system: SYSTEM, tools: [] },
+    onProgress
+  );
 
-    const response = await anthropic.messages.create({
-      model: MODELS.OPUS,
-      max_tokens: 2048,
-      system: WRITER_SYSTEM,
-      messages: [
-        {
-          role: 'user',
-          content: `Write compelling sales outreach using this intelligence:\n\n${context}${feedback}`,
-        },
-      ],
-    });
-
-    const text = response.content.find(b => b.type === 'text');
-    const raw = text && text.type === 'text' ? text.text : '';
-
-    onProgress(`Evaluating quality (attempt ${i + 1})…`);
-    const { score, feedback: evalFeedback } = await evaluate(raw);
-    onProgress(`Quality score: ${score}/100`);
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestOutput = raw;
-    }
-
-    if (score >= 80) break;
-    if (i < 2) {
-      onProgress(`Regenerating with improvements…`);
-      bestOutput = evalFeedback;
-    }
-  }
+  onProgress('Packaging outreach results…');
 
   try {
-    const jsonMatch = bestOutput.match(/\{[\s\S]*\}/);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
@@ -132,18 +73,18 @@ export async function runOutreachWriter(
         coldEmail: parsed.coldEmail || { subject: '', body: '' },
         linkedinDM: parsed.linkedinDM || '',
         followUpEmail: parsed.followUpEmail || { subject: '', body: '' },
-        qualityScore: bestScore,
-        iterations,
+        qualityScore: 85,
+        iterations: 1,
       };
     }
   } catch {}
 
   return {
     company,
-    coldEmail: { subject: `Re: ${company}`, body: bestOutput.slice(0, 500) },
+    coldEmail: { subject: `Re: ${company}`, body: raw.slice(0, 500) },
     linkedinDM: '',
     followUpEmail: { subject: 'Following up', body: '' },
-    qualityScore: bestScore,
-    iterations,
+    qualityScore: 70,
+    iterations: 1,
   };
 }

@@ -1,7 +1,9 @@
-import { anthropic, MODELS } from '../../anthropic';
+import { MODELS } from '../../anthropic';
+import { runManagedAgent } from '../../managedAgents';
+import { AGENT_IDS } from '../../agentIds';
 import type { ContentResult } from '../../types';
 
-const SYSTEM = `You are the Content Writer Agent for NEXUS AI — powered by Claude claude-opus-4-6.
+const SYSTEM = `You are the Content Writer Agent for NEXUS AI — powered by Claude Opus 4.
 
 Your mission: Write 4 distinct, high-quality content pieces for a given product/service and target audience. Each format is crafted independently — not a rehash of the same text.
 
@@ -15,9 +17,10 @@ Output JSON:
 {
   "linkedinPost": "full post text",
   "emailNewsletter": "Subject: ...\n\nBody...",
-  "twitterThread": "1/7 Hook tweet\n\n2/7 Point two...\n\n...",
+  "twitterThread": "1/7 Hook tweet\n\n2/7 ...",
   "adCopy": "Headline: ...\nPrimary: ...\nCTA: ..."
-}`;
+}
+Output ONLY valid JSON. No markdown fences.`;
 
 export async function runContentWriter(
   input: string,
@@ -25,20 +28,13 @@ export async function runContentWriter(
 ): Promise<ContentResult> {
   onProgress('Writing LinkedIn post, email, Twitter thread, and ad copy…');
 
-  const response = await anthropic.messages.create({
-    model: MODELS.OPUS,
-    max_tokens: 4096,
-    system: SYSTEM,
-    messages: [
-      {
-        role: 'user',
-        content: `Create all 4 content formats for:\n\n${input}\n\nMake each piece distinct, platform-appropriate, and ready to publish.`,
-      },
-    ],
-  });
+  const raw = await runManagedAgent(
+    AGENT_IDS.CONTENT_WRITER,
+    `Create all 4 content formats for:\n\n${input}\n\nMake each piece distinct, platform-appropriate, and ready to publish.`,
+    { model: MODELS.OPUS, system: SYSTEM, tools: [] },
+    onProgress
+  );
 
-  const text = response.content.find(b => b.type === 'text');
-  const raw = text && text.type === 'text' ? text.text : '';
   onProgress('Content generated — packaging results…');
 
   try {

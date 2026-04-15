@@ -173,13 +173,242 @@ export interface MarketingResult {
   completedAt: string;
 }
 
+// ── Revenue Operations ────────────────────────────────────────────────────────
+
+export interface ChurnRisk {
+  accountName: string;
+  riskLevel: 'critical' | 'high' | 'medium' | 'low';
+  signals: string[];
+  interventionRecommendation: string;
+  churnProbability: number;
+}
+
+export interface ChurnResult {
+  atRiskAccounts: ChurnRisk[];
+  overallRiskLevel: 'critical' | 'high' | 'medium' | 'low';
+  summary: string;
+  immediateActions: string[];
+}
+
+export interface ExpansionOpportunity {
+  accountName: string;
+  opportunityType: 'upsell' | 'cross-sell' | 'expansion';
+  estimatedARR: string;
+  rationale: string;
+  recommendedApproach: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface ExpansionResult {
+  opportunities: ExpansionOpportunity[];
+  totalPipelineEstimate: string;
+  topPriorityAccount: string;
+  summary: string;
+}
+
+export interface RevenueMetric {
+  name: string;
+  value: string;
+  benchmark: string;
+  trend: 'up' | 'down' | 'flat';
+  status: 'healthy' | 'warning' | 'critical';
+  note: string;
+}
+
+export interface RevenueHealthResult {
+  metrics: RevenueMetric[];
+  overallHealth: 'strong' | 'average' | 'at-risk';
+  summary: string;
+  alerts: string[];
+  topRecommendations: string[];
+}
+
+export type RevenueMode = 'churn' | 'expansion' | 'health' | 'all';
+
+export interface RevenueResult {
+  mode: RevenueMode;
+  input: string;
+  churn?: ChurnResult;
+  expansion?: ExpansionResult;
+  revenueHealth?: RevenueHealthResult;
+  completedAt: string;
+}
+
+// ── Competitive Intelligence ──────────────────────────────────────────────────
+
+export interface PricingSignal {
+  competitor: string;
+  pricingModel: string;
+  keyTiers: string[];
+  recentChanges: string;
+  strengthsVsYou: string[];
+  weaknessesVsYou: string[];
+}
+
+export interface CompetitivePricingResult {
+  signals: PricingSignal[];
+  yourPositioning: string;
+  pricingRecommendation: string;
+  summary: string;
+}
+
+export interface ProductSignal {
+  competitor: string;
+  announcement: string;
+  announcementDate: string;
+  threatLevel: 'high' | 'medium' | 'low';
+  customerImpact: string;
+  responseRecommendation: string;
+}
+
+export interface FeatureGap {
+  feature: string;
+  competitorHas: string;
+  yourStatus: string;
+  urgency: 'high' | 'medium' | 'low';
+}
+
+export interface ProductCompetitiveResult {
+  recentSignals: ProductSignal[];
+  featureGaps: FeatureGap[];
+  threatAssessment: string;
+  summary: string;
+}
+
+export interface MarketTrend {
+  trend: string;
+  evidence: string;
+  implication: string;
+  timeframe: string;
+  opportunity: boolean;
+}
+
+export interface MarketIntelResult {
+  trends: MarketTrend[];
+  marketSentiment: 'bullish' | 'neutral' | 'bearish';
+  emergingThreats: string[];
+  emergingOpportunities: string[];
+  analystSummary: string;
+  summary: string;
+}
+
+export type CompetitiveMode = 'pricing' | 'product' | 'market' | 'all';
+
+export interface CompetitiveResult {
+  mode: CompetitiveMode;
+  input: string;
+  pricing?: CompetitivePricingResult;
+  productCompetitive?: ProductCompetitiveResult;
+  marketIntel?: MarketIntelResult;
+  completedAt: string;
+}
+
+// ── Finance ───────────────────────────────────────────────────────────────────
+
+export interface ForecastScenario {
+  name: 'base' | 'optimistic' | 'pessimistic';
+  endOfYearARR: string;
+  growthRate: string;
+  keyAssumptions: string[];
+  risks: string[];
+}
+
+export interface MonthlyProjection {
+  month: string;
+  newARR: string;
+  churnedARR: string;
+  netARR: string;
+  cumulativeARR: string;
+}
+
+export interface ForecastResult {
+  scenarios: ForecastScenario[];
+  monthlyProjections: MonthlyProjection[];
+  recommendation: string;
+  keyRisks: string[];
+  summary: string;
+}
+
+export interface SpendCategory {
+  category: string;
+  currentMonthlySpend: string;
+  benchmarkPercent: string;
+  wasteEstimate: string;
+  optimizationOpportunity: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface SpendResult {
+  categories: SpendCategory[];
+  totalMonthlySpend: string;
+  totalWasteEstimate: string;
+  annualizedSavingsPotential: string;
+  priorityActions: string[];
+  summary: string;
+}
+
+export type FinanceMode = 'forecast' | 'spend' | 'all';
+
+export interface FinanceResult {
+  mode: FinanceMode;
+  input: string;
+  forecast?: ForecastResult;
+  spend?: SpendResult;
+  completedAt: string;
+}
+
+// ── Master Brain ──────────────────────────────────────────────────────────────
+
+export interface BrainAgentCall {
+  agentKey: string;
+  agentName: string;
+  input: string;
+}
+
+export interface BrainRoutingPlan {
+  agents: BrainAgentCall[];
+  rationale: string;
+  parallel: boolean;
+}
+
+export interface BrainAgentResult {
+  agentKey: string;
+  agentName: string;
+  output: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface BrainResult {
+  userMessage: string;
+  plan: BrainRoutingPlan;
+  agentResults: BrainAgentResult[];
+  synthesis: string;
+  completedAt: string;
+}
+
 // ── Streaming events ───────────────────────────────────────────────────────────
 
 export type AgentEvent =
-  | { type: 'agent_start'; agent: string; description: string; emoji: string }
+  // Core events (all terminals)
+  | { type: 'agent_start';    agent: string; description: string; emoji: string }
   | { type: 'agent_progress'; agent: string; text: string }
   | { type: 'agent_tool_call'; agent: string; tool: string; query: string }
   | { type: 'agent_complete'; agent: string; summary: string }
-  | { type: 'pipeline_complete'; result: SalesResult }
-  | { type: 'marketing_complete'; result: MarketingResult }
+
+  // Terminal completions
+  | { type: 'pipeline_complete';    result: SalesResult }
+  | { type: 'marketing_complete';   result: MarketingResult }
+  | { type: 'revenue_complete';     result: RevenueResult }
+  | { type: 'competitive_complete'; result: CompetitiveResult }
+  | { type: 'finance_complete';     result: FinanceResult }
+
+  // Brain-specific events
+  | { type: 'brain_routing';       plan: BrainRoutingPlan }
+  | { type: 'brain_agent_start';   agentKey: string; agentName: string }
+  | { type: 'brain_agent_done';    agentKey: string; agentName: string; success: boolean }
+  | { type: 'brain_synthesis';     text: string }
+  | { type: 'brain_complete';      result: BrainResult }
+
+  // Error
   | { type: 'error'; message: string };

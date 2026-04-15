@@ -1,4 +1,6 @@
-import { MODELS, tavilySearch, WEB_SEARCH_TOOL, runAgentLoop } from '../../anthropic';
+import { MODELS, WEB_SEARCH_TOOL } from '../../anthropic';
+import { runManagedAgent } from '../../managedAgents';
+import { AGENT_IDS } from '../../agentIds';
 import type { SEOResult, KeywordOpportunity } from '../../types';
 
 const SYSTEM = `You are the SEO Intelligence Agent for NEXUS AI.
@@ -8,31 +10,18 @@ Your mission: Conduct a real SEO opportunity analysis for a given topic or websi
 Output JSON:
 {
   "topic": "The analyzed topic",
-  "keywords": [
-    {
-      "keyword": "exact keyword phrase",
-      "intent": "informational",
-      "difficulty": "low",
-      "opportunity": "Why this keyword is a good target — specific reason"
-    }
-  ],
-  "contentGaps": [
-    "Specific topic/angle that top-ranking content is missing"
-  ],
+  "keywords": [{ "keyword": "exact phrase", "intent": "informational", "difficulty": "low", "opportunity": "Why this keyword is a good target" }],
+  "contentGaps": ["Specific topic/angle that top-ranking content is missing"],
   "outline": {
     "title": "SEO-optimized article title (60 chars max)",
     "metaDescription": "150-160 char meta description with keyword",
     "h1": "H1 tag",
-    "sections": [
-      {
-        "h2": "Section heading",
-        "keyPoints": ["Key point 1", "Key point 2"]
-      }
-    ]
+    "sections": [{ "h2": "Section heading", "keyPoints": ["Key point 1"] }]
   }
 }
 
-Include 8-10 keywords. Include 3-5 content gaps. Include 5-7 sections in the outline.`;
+Include 8-10 keywords. Include 3-5 content gaps. Include 5-7 sections in the outline.
+Output ONLY valid JSON. No markdown fences.`;
 
 function parseResult(raw: string, topic: string): SEOResult {
   try {
@@ -56,16 +45,12 @@ export async function runSEOAgent(
 ): Promise<SEOResult> {
   onProgress(`Running SEO analysis for: ${input}`);
 
-  const raw = await runAgentLoop(
-    MODELS.SONNET,
-    SYSTEM,
+  const raw = await runManagedAgent(
+    AGENT_IDS.SEO_KEYWORD,
     `Conduct a thorough SEO opportunity analysis for: "${input}"\n\nSearch for current rankings, competitor content, related questions, and keyword opportunities. Then produce the full SEO brief.`,
-    [WEB_SEARCH_TOOL],
-    async (_name, inp) => {
-      onProgress(`Searching: ${inp.query}`);
-      return tavilySearch(inp.query, 7);
-    },
-    onProgress
+    { model: MODELS.SONNET, system: SYSTEM, tools: [WEB_SEARCH_TOOL] },
+    onProgress,
+    (tool, query) => onProgress(`🔍 ${query}`)
   );
 
   const result = parseResult(raw, input);

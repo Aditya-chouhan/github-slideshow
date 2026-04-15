@@ -1,4 +1,6 @@
-import { anthropic, MODELS, tavilySearch, WEB_SEARCH_TOOL, runAgentLoop } from '../anthropic';
+import { MODELS, WEB_SEARCH_TOOL } from '../anthropic';
+import { runManagedAgent } from '../managedAgents';
+import { AGENT_IDS } from '../agentIds';
 import type { WhyNowResult, Signal } from '../types';
 
 const SYSTEM = `You are the Why Now Intelligence Agent for NEXUS AI — the world's most advanced B2B sales intelligence platform.
@@ -18,21 +20,13 @@ For EACH signal found, provide:
 - Why this creates buying urgency (1 sentence)
 - Urgency level: high / medium / low
 
-Output a clean JSON object with this structure:
+Output a clean JSON object:
 {
-  "signals": [
-    {
-      "type": "Funding",
-      "detail": "Raised $50M Series B led by Sequoia on March 2024",
-      "sourceUrl": "https://...",
-      "urgency": "high",
-      "buyingUrgency": "Companies scaling post-funding immediately invest in tools to accelerate revenue"
-    }
-  ],
+  "signals": [{ "type": "Funding", "detail": "...", "sourceUrl": "...", "urgency": "high" }],
   "summary": "2-sentence executive summary of why this company is a priority now"
 }
 
-Be factual. Never fabricate signals. If you cannot find specific recent signals, say so honestly.`;
+Be factual. Never fabricate signals. Output ONLY valid JSON. No markdown fences.`;
 
 function parseResult(raw: string, company: string): WhyNowResult {
   try {
@@ -60,16 +54,12 @@ export async function runWhyNow(
 ): Promise<WhyNowResult> {
   onProgress(`Scanning for recent signals on ${company}…`);
 
-  const raw = await runAgentLoop(
-    MODELS.SONNET,
-    SYSTEM,
+  const raw = await runManagedAgent(
+    AGENT_IDS.WHY_NOW,
     `Research "${company}" and find the top 3 "why now" signals that make them a high-priority prospect TODAY. Run multiple searches — funding, leadership, product launches, and hiring.`,
-    [WEB_SEARCH_TOOL],
-    async (_name, input) => {
-      onProgress(`Searching: ${input.query}`);
-      return tavilySearch(input.query, 5);
-    },
-    onProgress
+    { model: MODELS.SONNET, system: SYSTEM, tools: [WEB_SEARCH_TOOL] },
+    onProgress,
+    (tool, query) => onProgress(`🔍 ${query}`)
   );
 
   const result = parseResult(raw, company);
