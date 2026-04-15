@@ -43,20 +43,16 @@ async function listAgents(): Promise<ManagedAgent[]> {
 
 async function createAgent(params: {
   name: string;
-  display_name: string;
-  system_prompt: string;
+  description: string;
+  system: string;
   model: string;
-  tools: string[];
 }): Promise<ManagedAgent> {
-  const body: Record<string, unknown> = {
+  const body = {
     name: params.name,
-    display_name: params.display_name,
-    system_prompt: params.system_prompt,
+    description: params.description,
+    system: params.system,
     model: params.model,
   };
-  if (params.tools.length > 0) {
-    body.tools = params.tools.map(t => ({ type: t }));
-  }
 
   const res = await fetch(`${BASE}/agents`, {
     method: 'POST',
@@ -102,13 +98,11 @@ async function main() {
     }
 
     try {
-      const toolNames = agentDef.tools.map(t => t.name);
       const agent = await createAgent({
         name: agentName,
-        display_name: `NEXUS: ${agentDef.name}`,
-        system_prompt: agentDef.system,
+        description: agentDef.description,
+        system: agentDef.system,
         model: agentDef.model,
-        tools: toolNames,
       });
 
       console.log(`  ✅ ${agentDef.emoji} ${agentDef.name} — created (${agent.id})`);
